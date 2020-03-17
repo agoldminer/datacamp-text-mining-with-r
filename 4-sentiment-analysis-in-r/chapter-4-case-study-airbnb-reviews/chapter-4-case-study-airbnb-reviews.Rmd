@@ -1,0 +1,556 @@
+---
+title: "chapter-4-case-study-airbnb-reviews"
+author: "Xiaotian Sun"
+date: "13/03/2020"
+output: html_document
+---
+
+## 4. Case study: Airbnb reviews
+
+##### 4.1 Refresher on the text mining workflow (video)
+
+**6 defined steps**
+
+- define the problem & specific goals
+
+- identify the text
+
+- organize the text
+
+- extract features
+
+- analyze
+
+- draw a conclusion/reach an insight
+
+**Step 1: Define your problem**
+
+- Be precise
+
+- Avoid a "scope creep"
+
+- Iterate and try new methods and/or subjectivity lexicons to ensure some consistency
+
+**Step 2: Identify your text**
+
+- Find appropriate sources (e.g. searching Wikipedia for stock prices may make less sense than examining a stock forum)
+
+- Follow the terms of service for a site, be mindful of web scraping
+
+- Text sources affect the language used...become familiar with the source's tone and nuances
+
+
+##### 4.2 Step 1: What do you want to know? 
+
+Throughout this chapter you will analyze the text of a corpus of Airbnb housing rental reviews. Which of the following questions can you answer using a sentiment analysis of these reviews?
+
+What property qualities are listed in positive or negative comments?
+
+##### 4.3 Step 2: Identify Text Sources 
+
+In this short exercise you will load and examine a small corpus of property rental reviews from around Boston. Hopefully you already know `read.csv()` which enables you to load a comma separated file. In this exercise you will also need to specify `stringsAsFactors = FALSE` when loading the corpus. This ensures that the reviews are character vectors, not factors. This may seem mundane but the point of this chapter is to get you doing an entire workflow from start to finish so let's begin with data ingestion!
+
+Next you simply apply `str()` to review the data frame's structure. It is a convenient function for compactly displaying initial values and class types for vectors.
+
+Lastly you will apply `dim()` to print the dimensions of the data frame. For a data frame, your console will print the number of rows and the number of columns.
+
+Other functions like `head()`, `tail()` or `summary()` are often used for data exploration but in this case we keep the examination short so you can get to the fun sentiment analysis!
+
+***Instruction:***
+
+The Boston property rental reviews are stored in a CSV file located by the predefined variable `bos_reviews_file`.
+
+- Load the property reviews from `bos_reviews_file` with `read.csv()`. Call the object `bos_reviews`. Be sure to pass in the parameter `stringsAsFactors = FALSE` so the comments are not unique factors.
+
+- Examine the structure of the data frame using the base `str()` function applied to bos_reviews.
+
+- Find out how many reviews you are working with by calling `dim()` on the `bos_reviews`.
+
+```{r echo=FALSE, include=FALSE}
+library(tidytext)
+library(tidyverse)
+library(qdap)
+bos_reviews_file <- read_rds("bos_reviews.rds")
+bos_reviews <- bos_reviews_file
+```
+
+```{r}
+# bos_reviews_file has been pre-defined
+bos_reviews_file
+
+# load raw text
+#bos_reviews <- read.csv(bos_reviews_file,stringsAsFactors = FALSE)
+
+# Structure
+str(bos_reviews)
+
+# Dimensions
+dim(bos_reviews)
+```
+
+##### 4.4 Quickly examine the basic polarity 
+
+When starting a sentiment project, sometimes a quick `polarity()` will help you set expectations or learn about the problem. In this exercise (to save time), you will apply `polarity()` to a portion of the `comments` vector while the larger polarity object is loaded in the background.
+
+Using a kernel density plot you should notice the reviews do not center on 0. Often there are two causes for this sentiment "grade inflation." First, social norms may lead respondents to be pleasant instead of neutral. This, of course, is channel specific. Particularly snarky channels like e-sports or social media posts may skew negative leading to "deflation." These channels have different expectations. A second possible reason could be "feature based sentiment". In some reviews an author may write "the bed was comfortable and nice but the kitchen was dirty and gross." The sentiment of this type of review encompasses multiple features simultaneously and therefore could make an average score skewed.
+
+In a subsequent exercise you will adjust this "grade inflation" but here explore the reviews without any change.
+
+***Instruction:***
+
+- Create `practice_pol` using `polarity()` on the first six reviews as in `bos_reviews$comments[1:6]`
+
+- Review the returned polarity object by calling `practice_pol`.
+
+- Call `summary()` on `practice_pol$all$polarity` - this will access the overall polarity for all 6 comments.
+
+- We've also loaded a larger polarity object for all 1000 comments. This new object is called `bos_pol`. Now apply `summary()` to the correct list element that returns all polarity scores of `bos_pol`.
+
+- The sample code has a barplot and kernel density plot almost ready to print. You must enter the data frame representing all scores. Hint: in the previous step, `polarity` represents a column of this data frame.
+
+```{r echo=FALSE, include=FALSE}
+bos_pol <- polarity(bos_reviews)
+```
+
+```{r}
+library(ggthemes)
+```
+
+```{r}
+# Practice apply polarity to first 6 reviews
+practice_pol <- polarity(bos_reviews$comments[1:6])
+
+# Review the object
+practice_pol
+
+# Check out the practice polarity
+summary(practice_pol$all$polarity)
+
+# Summary for all reviews
+summary(bos_pol$all$polarity)
+
+# Plot Boston polarity all element
+ggplot(bos_pol$all, aes(x = polarity, y = ..density..)) + 
+  geom_histogram(binwidth = 0.25, fill = "#bada55", colour = "grey60") +
+  geom_density(size = 0.75) +
+  theme_gdocs() 
+```
+
+##### 4.5 Step 3: Organize (& clean) the text (video)
+
+##### 4.6 Create Polarity Based Corpora 
+
+In this exercise you will perform Step 3 of the text mining workflow. Although `qdap` isn't a tidy package you will `mutate()` a new column based on the returned `polarity` list representing all polarity (that's a hint BTW) scores. In chapter 3 we used a custom function `pol_subsections` which uses only base R declarations. However, in following the tidy principles this exercise uses `filter()` then introduces `pull()`. The `pull()` function works like works like `[[` to extract a single variable.
+
+Once segregated you collapse all the positive and negative comments into two larger documents representing all words among the positive and negative rental reviews.
+
+Lastly, you will create a Term Frequency Inverse Document Frequency (TFIDF) weighted Term Document Matrix (TDM). Since this exercise code starts with a tidy structure, some of the functions borrowed from `tm` are used along with the `%>%` operator to keep the style consistent. If the basics of the `tm` package aren't familiar check out the `Text Mining: Bag of Words` course. Instead of counting the number of times a word is used (frequency), the values in the TDM are penalized for over used terms, which helps reduce non-informative words.
+
+***Instruction 1:***
+
+- Get the positive comments.
+
+  - Mutate to add a `polarity` column, equal to `bos_pol$all$polarity`.
+  
+  - Filter to keep rows where `polarity` is greater than zero.
+  
+  - Use `pull()` to extract the `comments` column. (Pass this column without quotes.)
+  
+  - Collapse into a single string, separated by spaces using `paste()`, passing `collapse = " "``.
+
+```{r}
+pos_terms <- bos_reviews %>%
+  # Add polarity column
+  mutate(polarity = bos_pol$all$polarity) %>%
+  # Filter for positive polarity
+  filter(polarity > 0) %>%
+  # Extract comments column
+  pull(comments) %>% 
+  # Paste and collapse
+  paste(collapse = " ")
+```
+
+***Instruction 2:***
+
+- Do the same again, this time with negative comments.
+
+  - Mutate to add a `polarity` column, equal to `bos_pol$all$polarity`.
+  
+  - Filter to keep rows where `polarity` is less than zero.
+  
+  - Extract the `comments` column.
+  
+  - Collapse into a single string, separated by spaces.
+
+```{r}
+neg_terms <- bos_reviews %>%
+  # Add polarity column
+  mutate(polarity = bos_pol$all$polarity) %>%
+  # Filter for negative polarity
+  filter(polarity < 0) %>%
+  # Extract comments column
+  pull(comments) %>%
+  # Paste and collapse
+  paste(collapse = " ")
+```
+
+***Instruction 3:***
+
+- Create a corpus of both positive and negative comments.
+
+  - Use `c()` to concatenate `pos_terms` and `neg_terms`.
+  
+  - Source the text using `VectorSource()` without arguments.
+  
+  - Convert to a volatile corpus by calling `VCorpus()`, again without arguments.
+
+```{r}
+# From previous steps
+pos_terms <- bos_reviews %>%
+  mutate(polarity = bos_pol$all$polarity) %>%
+  filter(polarity > 0) %>%
+  pull(comments) %>% 
+  paste(collapse = " ")
+neg_terms <- bos_reviews %>%
+  mutate(polarity = bos_pol$all$polarity) %>%
+  filter(polarity < 0) %>%
+  pull(comments) %>% 
+  paste(collapse = " ")
+
+# Concatenate the terms
+all_corpus <- c(pos_terms, neg_terms) %>% 
+  # Source from a vector
+  VectorSource %>% 
+  # Create a volatile corpus
+  VCorpus()
+```
+
+***Instruction 4:***
+
+- Create a term-document matrix from `all_corpus`.
+
+  - Use term frequency inverse document frequency `weighting` by setting weighting to `weightTfIdf`.
+  
+  - Remove punctuation by setting `removePunctuation` to `TRUE`.
+  
+  - Use English stopwords by setting `stopwords` to `stopwords(kind = "en")`.
+
+```{r}
+# From previous steps
+pos_terms <- bos_reviews %>%
+  mutate(polarity = bos_pol$all$polarity) %>%
+  filter(polarity > 0) %>%
+  pull(comments) %>% 
+  paste(collapse = " ")
+neg_terms <- bos_reviews %>%
+  mutate(polarity = bos_pol$all$polarity) %>%
+  filter(polarity < 0) %>%
+  pull(comments) %>% 
+  paste(collapse = " ")
+all_corpus <- c(pos_terms, neg_terms) %>% 
+  VectorSource() %>% 
+  VCorpus()
+  
+all_tdm <- TermDocumentMatrix(
+  # Use all_corpus
+  all_corpus, 
+  control = list(
+    # Use TFIDF weighting
+    weighting = weightTfIdf, 
+    # Remove the punctuation
+    removePunctuation = TRUE,
+    # Use English stopwords
+    stopwords = stopwords(kind = "en")
+  )
+)
+
+# Examine the TDM
+all_tdm
+```
+
+##### 4.7 Create a Tidy Text Tibble!
+
+Since you learned about tidy principles this code helps you organize your data into a tibble so you can then work within the tidyverse!
+
+Previously you learned that applying `tidy()` on a `TermDocumentMatrix()` object will convert the TDM to a tibble. In this exercise you will create the word data directly from the review column called `comments`.
+
+First you use `unnest_tokens()` to make the text lowercase and tokenize the reviews into single words.
+
+Sometimes it is useful to capture the original word order within each group of a corpus. To do so, use `mutate()`. In `mutate()` you will use `seq_along()` to create a sequence of numbers from 1 to the length of the object. This will capture the word order as it was written.
+
+In the `tm` package, you would use `removeWords()` to remove stopwords. In the tidyverse you first need to load the stop words lexicon and then apply an `anti_join()` between the tidy text data frame and the stopwords.
+
+***Instruction:***
+
+- Create `tidy_reviews` by piping (`%>%`) the original reviews object `bos_reviews` to the `unnest_tokens()` function. Pass in a new column name, `word` and declare the `comments` column. Remember in the tidyverse you don't need a `$` or quotes.
+
+- Create a new variable the tidy way! Rewrite `tidy_reviews` by piping `tidy_reviews` to `group_by` with the column `id`. Then `%>%` it again to `mutate()`. Within mutate create a new variable `original_word_order` equal to `seq_along(word)`.
+
+- Print out the tibble, `tidy_reviews`.
+
+- Load the premade "SMART" stopwords to your R session with `data("stop_words")`.
+
+- Overwrite `tidy_reviews` by passing the original `tidy_reviews` to `anti_join()` with a `%>%`. Within `anti_join()` pass in the predetermined `stop_words` lexicon.
+
+```{r}
+# Vector to tibble
+tidy_reviews <- bos_reviews %>% 
+  unnest_tokens(word, comments)
+
+# Group by and mutate
+tidy_reviews <- tidy_reviews %>% 
+  group_by(id) %>% 
+  mutate(original_word_order = seq_along(word))
+
+# Quick review
+tidy_reviews 
+
+# Load stopwords
+data("stop_words")
+
+# Perform anti-join
+tidy_reviews_without_stopwords <- tidy_reviews %>% 
+  anti_join(stop_words)
+```
+
+##### 4.8 Compare Tidy Sentiment to Qdap Polarity
+
+Here you will learn that differing sentiment methods will cause different results. Often you will simply need to have results align directionally although the specifics may be different. In the last exercise you created `tidy_reviews` which is a data frame of rental reviews without stopwords. Earlier in the chapter, you calculated and plotted `qdap`'s basic `polarity()` function. This showed you the reviews tend to be positive.
+
+Now let's perform a similar analysis the `tidytext` way! Recall from an earlier chapter you will perform an `inner_join()` followed by `count()` and then a `spread()`.
+
+Lastly, you will create a new column using `mutate()` and passing in `positive - negative`.
+
+***Instruction:***
+
+- Using the `get_sentiments()` function with "bing" will obtain the bing subjectivity lexicon. Call the lexicon `bing`.
+
+- Since you already wrote this code in Chapter 2 simply enter in the lexicon object, `bing`, the new column name (`polarity`) and its calculation within `mutate()`.
+
+- Lastly call `summary()` on the new object `pos_neg`. Although the values are different, are most rental reviews similarly positive compared to using `polarity()`? Do you see "grade inflation?"
+
+
+```{r}
+# Get the correct lexicon
+bing <- get_sentiments("bing")
+
+# Calculate polarity for each review
+pos_neg <- tidy_reviews %>% 
+  inner_join(bing) %>%
+  count(sentiment) %>%
+  spread(sentiment, n, fill = 0) %>% 
+  mutate(polarity = positive - negative)
+
+# Check outcome
+summary(pos_neg)
+```
+
+##### 4.9 Step 4: Feature Extraction & Step 5: Time for analysis... almost there!  (video)
+
+##### 4.10 Assessing author effort 
+
+Often authors will use more words when they are more passionate. For example, a mad airline passenger will leave a longer review the worse (the perceived) service. Conversely a less impassioned passenger may not feel compelled to spend a lot of time writing a review. Lengthy reviews may inflate overall sentiment since the reviews will inherently contain more positive or negative language as the review lengthens. This coding exercise helps to examine effort and sentiment.
+
+In this exercise you will visualize the relationship between effort and sentiment. Recall your rental review tibble contains an `id` and that a word is represented in each row. As a result a simple `count()` of the `id` will capture the number of words used in each review. Then you will join this summary to the positive and negative data. Ultimately you will create a scatter plot that will visualize author review length and its relationship to polarity.
+
+***Instruction 1:***
+
+- Calculate a measure of effort as the count of `id`.
+
+- Inner join to the polarity of each review, `pos_neg`.
+`
+- Mutate to add a `pol` column. Use `ifelse()` to set `pol` to `"Positive"` if `polarity` is greater than or equal to zero, else `"Negative"`.
+
+```{r}
+# Review tidy_reviews and pos_neg
+tidy_reviews
+pos_neg
+
+pos_neg_pol <- tidy_reviews %>% 
+  # Effort is measured as count by id
+  count(id) %>% 
+  # Inner join to pos_neg
+  inner_join(pos_neg) %>% 
+  # Add polarity status
+  mutate(pol = ifelse(polarity >= 0, "Positive", "Negative"))
+
+# Examine results
+pos_neg_pol
+```
+
+***Instruction 2:***
+
+- Using `pos_neg_pol`, plot `n` vs. `polarity`, colored by `pol`.
+
+- Add a point layer using `geom_point()`.
+
+- Add a smooth trend layer using `geom_smooth()`.
+
+```{r}
+# From previous step
+pos_neg_pol <- tidy_reviews %>% 
+  count(id) %>% 
+  inner_join(pos_neg) %>% 
+  mutate(pol = ifelse(polarity >= 0, "Positive", "Negative"))
+  
+# Plot n vs. polarity, colored by pol
+ggplot(pos_neg_pol, aes(y = n, x = polarity, color = pol)) + 
+  # Add point layer
+  geom_point(alpha = 0.25) +
+  # Add smooth layer
+  geom_smooth(method = "lm", se = FALSE) +
+  theme_gdocs() +
+  ggtitle("Relationship between word effort & polarity")
+```
+
+##### 4.11 Comparison Cloud
+
+This exercise will create a common visual for you to understand term frequency. Specifically, you will review the most frequent terms from among the positive and negative collapsed documents. Recall the **TermDocumentMatrix** `all_tdm` you created earlier. Instead of 1000 rental reviews the matrix contains 2 documents containing all reviews separated by the `polarity()` score.
+
+It's usually easier to change the TDM to a matrix. From there you simply rename the columns. Remember that the `colnames()` function is called on the left side of the assignment operator as shown below.
+
+> colnames(OBJECT) <- c("COLUMN_NAME1", "COLUMN_NAME2")
+
+Once done, you will reorder the matrix to see the most positive and negative words. Review these terms so you can answer the conclusion exercises!
+
+Lastly, you'll visualize the terms using `comparison.cloud()`.
+
+***Instruction 1:***
+
+- Change the pre-loaded `all_tdm` to a matrix called `all_tdm_m` using `as.matrix()`.
+
+- Use `colnames()` on `all_tdm_m` to declare `c("positive", "negative")`.
+
+- Apply `order()` to `all_tdm_m[,1]` and set `decreasing = TRUE`.
+
+- Review the top 10 terms of the reordered TDM using pipe (`%>%`) then `head()` with `n = 10`.
+
+- Repeat the previous two steps with negative comments. Now you will `order()` by the second column, `all_tdm_m[,2]` and use `decreasing = TRUE`.
+
+- Review the 10 most negative terms indexing `all_tdm_m` by `order_by_neg`. Pipe this to `head()` with `n = 10`.
+
+```{r}
+# Matrix
+all_tdm_m <- as.matrix(all_tdm)
+
+# Column names
+colnames(all_tdm_m) <- c("positive", "negative")
+
+# Top pos words
+order_by_pos <- order(all_tdm_m[, 1], decreasing = TRUE)
+
+# Review top 10 pos words
+all_tdm_m[order_by_pos, ] %>% head(10)
+
+# Top neg words
+order_by_neg <- order(all_tdm_m[, 2], decreasing = TRUE)
+
+# Review top 10 neg words
+all_tdm_m[order_by_neg, ] %>% head(10)
+```
+
+***Instruction 2:***
+
+- Draw a `comparison.cloud()` on `all_tdm_m`. Specify `max.words` equal to `20`.
+
+```{r}
+# From previous step
+all_tdm_m <- as.matrix(all_tdm)
+colnames(all_tdm_m) <- c("positive", "negative")
+
+comparison.cloud(
+  # Use the term-document matrix
+  all_tdm_m,
+  # Limit to 20 words
+  max.words = 20,
+  colors = c("darkgreen","darkred")
+)
+```
+
+##### 4.12 Scaled Comparison Cloud
+
+Recall the "grade inflation" of polarity scores on the rental reviews? Sometimes, another way to uncover an insight is to scale the scores back to 0 then perform the corpus subset. This means some of the previously positive comments may become part of the negative subsection or vice versa since the mean is changed to 0. This exercise will help you scale the scores and then re-plot the `comparison.cloud()`. Removing the "grade inflation" can help provide additional insights.
+
+Previously you applied `polarity()` to the `bos_reviews$comments` and created a `comparison.cloud()`. In this exercise you will `scale()` the outcome before creating the `comparison.cloud()`. See if this shows something different in the visual!
+
+Since this is largely a review exercise, a lot of the code exists, just fill in the correct objects and parameters!
+
+***Instruction:***
+
+- Review a section of the pre-loaded `bos_pol$all` while indexing `[1:6,1:3]`.
+
+- Add a new column to called `scaled_polarity` with `scale()` applied to the polarity score column `bos_pol$all$polarity`.
+
+- For positive comments, `subset()` where the new column `bos_reviews$scaled_polarity` is greater than (>) zero.
+
+- For negative comments, `subset()` where the new column `bos_reviews$scaled_polarity` is less than (<) zero.
+
+- Create `pos_terms` using `paste()` on `pos_comments`.
+
+- Now create `neg_terms` with `paste()` on `neg_comments`.
+
+- Organize the collapsed documents, `pos_terms` and `neg_terms` documents into a single corpus called `all_terms`.
+
+- Following the usual `tm` workflow by nesting `VectorSource()` inside `VCorpus()` applied to `all_terms`.
+
+- Make the `TermDocumentMatrix()` using the `all_corpus` object. Note this is a TfIdf weighted TDM with basic cleaning functions.
+
+- Change `all_tdm` to `all_tdm_m` using `as.matrix()`. Then rename the columns in the existing code to `"positive"` and `"negative"`.
+
+- Finally! apply `comparison.cloud()` to the matrix object `all_tdm_m`. Take notice of the new most frequent negative words. Maybe it will uncover an unknown insight!
+
+
+```{r}
+# Review
+bos_pol$all[1:6,1:3]
+
+# Scale/center & append
+bos_reviews$scaled_polarity <- scale(bos_pol$all$polarity)
+
+# Subset positive comments
+pos_comments <- subset(bos_reviews$comments, bos_reviews$scaled_polarit > 0)
+
+# Subset negative comments
+neg_comments <- subset(bos_reviews$comments, bos_reviews$scaled_polarit < 0)
+
+# Paste and collapse the positive comments
+pos_terms <- paste(pos_comments, collapse = " ")
+
+# Paste and collapse the negative comments
+neg_terms <- paste(neg_comments, collapse = " ")
+
+# Organize
+all_terms<- c(pos_terms, neg_terms)
+
+# VCorpus
+all_corpus <- VCorpus(VectorSource(all_terms))
+
+# TDM
+all_tdm <- TermDocumentMatrix(
+  all_corpus, 
+  control = list(
+    weighting = weightTfIdf, 
+    removePunctuation = TRUE, 
+    stopwords = stopwords(kind = "en")
+  )
+)
+
+# Column names
+all_tdm_m <- as.matrix(all_tdm)
+colnames(all_tdm_m) <- c("positive", "negative")
+
+# Comparison cloud
+comparison.cloud(
+  all_tdm_m, 
+  max.words = 100,
+  colors = c("darkgreen", "darkred")
+)
+```
+
+##### 4.13 Step 6: Reach a conclusion (video)
+
+##### 4.14 Confirm an expected conclusion
+
+##### 4.15 Choose a less expected insight 
+
+##### 4.16 Your turns!

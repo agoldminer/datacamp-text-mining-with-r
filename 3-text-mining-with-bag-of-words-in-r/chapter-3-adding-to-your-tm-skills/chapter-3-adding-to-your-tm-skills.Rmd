@@ -1,0 +1,512 @@
+---
+title: "chapter-3-adding-to-your-tm-skills"
+author: "Xiaotian Sun"
+date: "14/02/2020"
+output: html_document
+---
+
+## 3. Adding to Your tm Skills
+
+##### 3.1 Simple word clustering (video)
+
+- hierarchical clustering example
+
+- a simple dendrogram
+
+- dendrogram aesthetics
+
+**Dendrograms reduce complicated multi-dimensional datasets to simple clustering information. This makes them a valuable tool to reduce complexity.**
+
+##### 3.2 Test your understanding of text mining 
+
+##### 3.3 Distance matrix and dendrogram 
+
+A simple way to do word cluster analysis is with a dendrogram on your term-document matrix. Once you have a TDM, you can call `dist()` to compute the differences between each row of the matrix.
+
+Next, you call `hclust()` to perform cluster analysis on the dissimilarities of the distance matrix. Lastly, you can visualize the word frequency distances using a dendrogram and `plot()`. Often in text mining, you can tease out some interesting insights or word clusters based on a dendrogram.
+
+Consider the table of annual rainfall that you saw in the last video. Cleveland and Portland have the same amount of rainfall, so their distance is 0. You might expect the two cities to be a cluster and for New Orleans to be on its own since it gets vastly more rain.
+
+       city rainfall
+  Cleveland    39.14
+   Portland    39.14
+     Boston    43.77
+New Orleans    62.45
+
+***Instruction:***
+
+The data frame `rain` has been preloaded in your workspace.
+
+- Create `dist_rain` by using the `dist()` function on the values in the second column of rain.
+
+- Print the `dist_rain` matrix to the console.
+
+- Create `hc` by performing a cluster analysis, using `hclust()` on `dist_rain`.
+
+- `plot()` the `hc` object with `labels = rain$city` to add the city names.
+
+```{r echo=FALSE}
+rain <- structure(list(city = structure(c(2L, 4L, 1L, 3L), .Label = c("Boston", 
+  "Cleveland", "New Orleans", "Portland"), class = "factor"), rainfall = c(39.14, 
+  39.14, 43.77, 62.45)), .Names = c("city", "rainfall"), row.names = c(NA, 
+  -4L), class = "data.frame")
+```
+
+```{r}
+# Create dist_rain
+dist_rain <- dist(rain[, 2])
+
+# View the distance matrix
+dist_rain
+
+# Create hc
+hc <- hclust(dist_rain)
+
+# Plot hc
+plot(hc, labels = rain$city)
+```
+
+##### 3.4 Make a dendrogram friendly TDM 
+
+Now that you understand the steps in making a dendrogram, you can apply them to text. But first, you have to limit the number of words in your TDM using `removeSparseTerms()` from `tm`. Why would you want to adjust the sparsity of the TDM/DTM?
+
+TDMs and DTMs are sparse, meaning they contain mostly zeros. Remember that 1000 tweets can become a TDM with over 3000 terms! You won't be able to easily interpret a dendrogram that is so cluttered, especially if you are working on more text.
+
+In most professional settings a good dendrogram is based on a TDM with 25 to 70 terms. Having more than 70 terms may mean the visual will be cluttered and incomprehensible. Conversely, having less than 25 terms likely means your dendrogram may not plot relevant and insightful clusters.
+
+When using `removeSparseTerms()`, the sparse parameter will adjust the total terms kept in the TDM. The closer sparse is to 1, the more terms are kept. This value represents a percentage cutoff of zeros for each term in the TDM.
+
+***Instruction:***
+
+`tweets_tdm` has been created using the chardonnay tweets.
+
+- Print the dimensions of `tweets_tdm` to the console.
+
+- Create `tdm1` using `removeSparseTerms()` with `sparse = 0.95` on `tweets_tdm`.
+
+- Create `tdm2` using `removeSparseTerms()` with `sparse = 0.975` on `tweets_tdm`.
+
+- Print `tdm1` to the console to see how many terms are left.
+
+- Print `tdm2` to the console to see how many terms are left.
+
+```{r echo=FALSE}
+library(tm)
+# Import chardonnay tweet data
+chardonnay_tweets <- read.csv("chardonnay.csv", stringsAsFactors = F)
+
+# Make a vector source
+chardonnay_source <- VectorSource(chardonnay_tweets$text)
+
+# Make a volatile corpus
+chardonnay_corpus <- VCorpus(chardonnay_source)
+
+# Clean the corpus
+clean_corpus <- function(corpus){
+  #corpus <- tm_map(corpus, stripWhitespace)
+  corpus <- tm_map(corpus, removePunctuation)
+  corpus <- tm_map(corpus, content_transformer(tolower))
+  #corpus <- tm_map(corpus, removeWords, stopwords("en"))
+  return(corpus)
+}
+
+chardonnay_clean_corp <- clean_corpus(chardonnay_corpus)
+
+# Convert TDM to matrix
+tweets_tdm <- TermDocumentMatrix(chardonnay_clean_corp)
+
+```
+
+```{r}
+# Print the dimensions of tweets_tdm
+dim(tweets_tdm)
+
+# Create tdm1
+tdm1 <- removeSparseTerms(tweets_tdm, sparse = 0.95)
+
+# Create tdm2
+tdm2 <- removeSparseTerms(tweets_tdm, sparse = 0.975)
+
+# Print tdm1
+tdm1
+
+# Print tdm2
+tdm2
+```
+
+##### 3.5 Put it all together: a tea based dendrogram
+
+Its time to put your skills to work to make your first text-based dendrogram. Remember, dendrograms reduce information to help you make sense of the data. This is much like how an average tells you something, but not everything, about a population. Both can be misleading. With text, there are often a lot of nonsensical clusters, but some valuable clusters may also appear.
+
+A peculiarity of TDM and DTM objects is that you have to convert them first to matrices (with `as.matrix()`), before using them with the `dist()` function.
+
+For the chardonnay tweets, you may have been surprised to see the soul music legend Marvin Gaye appear in the word cloud. Let's see if the dendrogram picks up the same.
+
+***Instruction:***
+
+- Create `tweets_tdm2` by applying `removeSparseTerms()` on `tweets_tdm`. Use `sparse = 0.975`.
+
+- Create `tdm_m` by using `as.matrix()` on `tweets_tdm2` to convert it to matrix form.
+
+- Create `tweets_dist` containing the distances of `tdm_m` using the `dist()` function.
+
+- Create a hierarchical cluster object called `hc` using `hclust()` on `tweets_dist`.
+
+Make a dendrogram with `plot()` and `hc`.
+
+```{r}
+# Create tweets_tdm2
+tweets_tdm2 <- removeSparseTerms(tweets_tdm, sparse = 0.975)
+
+# Create tdm_m
+tdm_m <- as.matrix(tweets_tdm2)
+
+# Create tweets_dist
+tweets_dist <- dist(tdm_m)
+
+# Create hc
+hc <- hclust(tweets_dist)
+
+# Plot the dendrogram
+plot(hc)
+```
+
+##### 3.6 Dendrogram aesthetics 
+
+So you made a dendrogram...but it's not as eye catching as you had hoped!
+
+The `dendextend` package can help your audience by coloring branches and outlining clusters. `dendextend` is designed to operate on dendrogram objects, so you'll have to change the hierarchical cluster from `hclust` using `as.dendrogram()`.
+
+A good way to review the terms in your dendrogram is with the `labels()` function. It will print all terms of the dendrogram. To highlight specific branches, use `branches_attr_by_labels()`. First, pass in the dendrogram object, then a vector of terms as in `c("data", "camp")`. Lastly add a color such as `"blue"`.
+
+After you make your plot, you can call out clusters with `rect.dendrogram()`. This adds rectangles for each cluster. The first argument to `rect.dendrogram()` is the dendrogram, followed by the number of clusters (`k`). You can also pass a `border` argument specifying what color you want the rectangles to be (e.g. `"green"`).
+
+***Instruction:***
+
+The `dendextend` package has been loaded for you, and a hierarchical cluster object, `hc`, was created from `tweets_dist`.
+
+- Create `hcd` as a dendrogram using `as.dendrogram()` on `hc`.
+- Print the `labels` of `hcd` to the console.
+- Use `branches_attr_by_labels()` to color the branches. Pass it three arguments: the `hcd` object, `c("marvin", "gaye")`, and the color `"red"`. Assign to `hcd_colored`.
+- `plot()` the dendrogram `hcd_colored` with the title `"Better Dendrogram"`, added using the `main` argument.
+- Add rectangles to the plot using `rect.dendrogram()`. Specify `k = 2` clusters and a `border` color of `"grey50"`.
+
+```{r echo=FALSE}
+library(dendextend)
+```
+
+```{r}
+# Create hcd
+hcd <- as.dendrogram(hc)
+
+# Print the labels in hcd
+labels(hcd)
+
+# Change the branch color to red for "marvin" and "gaye"
+hcd_colored <- branches_attr_by_labels(hcd, c("marvin", "gaye"), color = "red")
+
+# Plot hcd
+plot(hcd_colored, main = "Better Dendrogram")
+
+# Add cluster rectangles 
+rect.dendrogram(hcd_colored, k = 2, border = "grey50")
+```
+
+##### 3.7 Using word association 
+
+Another way to think about word relationships is with the `findAssocs()` function in the `tm` package. For any given word, `findAssocs()` calculates its correlation with every other word in a TDM or DTM. Scores range from 0 to 1. A score of 1 means that two words always appear together in documents, while a score approaching 0 means the terms seldom appear in the same document.
+
+Keep in mind the calculation for `findAssocs()` is done at the document level. So for every document that contains the word in question, the other terms in those specific documents are associated. Documents without the search term are ignored.
+
+To use `findAssocs()` pass in a TDM or DTM, the search term, and a minimum correlation. The function will return a list of all other terms that meet or exceed the minimum threshold.
+
+>findAssocs(tdm, "word", 0.25)
+
+Minimum correlation values are often relatively low because of word diversity. Don't be surprised if 0.10 demonstrates a strong pairwise term association.
+
+The coffee tweets have been cleaned and organized into tweets_tdm for the exercise. You will search for a term association, and manipulate the results with `list_vect2df()` from qdap and then create a plot with the ggplot2 code in the example script.
+
+***Instruction:***
+
+- Create `associations` using `findAssocs()` on `tweets_tdm` to find terms associated with "venti", which meet a minimum threshold of `0.2`.
+
+- View the terms associated with "venti" by printing `associations` to the console.
+
+- Create `associations_df`, by calling `list_vect2df()`, passing `associations`, then setting `col2` to `"word"` and `col3` to `"score"`.
+
+- Run the `ggplot2` code to make a dot plot of the association values.
+
+```{r echo=FALSE}
+tweets <- read.csv("coffee.csv", stringsAsFactors = F)
+
+# Isolate text from tweets: coffee_tweets
+coffee_tweets <- tweets$text
+
+# Make a vector source: coffee_source
+coffee_source <- VectorSource(coffee_tweets)
+
+# Make a volatile corpus: coffee_corpus
+coffee_corpus <- VCorpus(coffee_source)
+
+# Alter the function code to match the instructions
+clean_corpus <- function(corpus){
+  corpus <- tm_map(corpus, stripWhitespace)
+  corpus <- tm_map(corpus, removePunctuation)
+  corpus <- tm_map(corpus, content_transformer(tolower))
+  corpus <- tm_map(corpus, removeWords, c(stopwords("en"), "coffee", "mug"))
+  return(corpus)
+}
+
+clean_corp <- clean_corpus(coffee_corpus)
+
+# Create a TDM from clean_corp: coffee_tdm
+tweets_tdm <- TermDocumentMatrix(clean_corp)
+
+library(ggplot2)
+library(tm)
+library(qdap)
+```
+
+```{r}
+library(tm)
+# Create associations
+associations <- findAssocs(tweets_tdm, "venti", 0.2)
+
+# View the venti associations
+associations
+
+# Create associations_df
+associations_df <- list_vect2df(associations, col2 = "word", col3 = "score")
+
+# Plot the associations_df values
+ggplot(associations_df, aes(score, word)) + 
+  geom_point(size = 3) #+ theme_gdocs()
+```
+
+##### 3.8 Getting past single words (video)
+
+- unigrams, bigrams, trigrams
+
+##### 3.9 N-gram tokenization 
+
+Increasing the n-gram length will increase for the TDM or DTM size.
+
+##### 3.10 Changing n-grams
+
+So far, we have only made TDMs and DTMs using single words. The default is to make them with unigrams, but you can also focus on tokens containing two or more words. This can help extract useful phrases which lead to some additional insights or provide improved predictive attributes for a machine learning algorithm.
+
+The function below uses the `RWeka` package to create trigram (three word) tokens: `min` and `max` are both set to `3`.
+
+>tokenizer <- function(x) {
+  NGramTokenizer(x, Weka_control(min = 3, max = 3))
+}
+
+Then the customized `tokenizer()` function can be passed into the `TermDocumentMatrix` or `DocumentTermMatrix `functions as an additional parameter:
+
+>tdm <- TermDocumentMatrix(
+  corpus, 
+  control = list(tokenize = tokenizer)
+)
+
+***Instruction:***
+
+A `corpus` has been preprocessed as before using the chardonnay tweets. The resulting object `text_corp` is available in your workspace.
+
+- Create a `tokenizer` function like the above which creates 2-word bigrams.
+
+- Make `unigram_dtm` by calling `DocumentTermMatrix()` on `text_corp` without using the `tokenizer()` function.
+
+- Make `bigram_dtm` using `DocumentTermMatrix()` on `text_corp` with the `tokenizer()` function you just made.
+
+- Examine `unigram_dtm` and `bigram_dtm`. Which has more terms?
+
+```{r echo=FALSE}
+text_corp <- chardonnay_clean_corp
+library(RWeka)
+library(tm)
+```
+
+```{r}
+# Make tokenizer function 
+tokenizer <- function(x)
+  NGramTokenizer(x, Weka_control(min = 2, max = 2))
+
+# Create unigram_dtm
+unigram_dtm <- DocumentTermMatrix(text_corp)
+
+# Create bigram_dtm
+bigram_dtm <- DocumentTermMatrix(
+  text_corp,
+  control = list(tokenize = tokenizer))
+
+# Print unigram_dtm
+unigram_dtm
+
+# Print bigram_dtm
+bigram_dtm
+```
+
+##### 3.11 How do bigrams affect word clouds? 
+
+Now that you have made a bigram DTM, you can examine it and remake a word cloud. The new tokenization method affects not only the matrices, but also any visuals or modeling based on the matrices.
+
+Remember how "Marvin" and "Gaye" were separate terms in the chardonnay word cloud? Using bigram tokenization grabs all two word combinations. Observe what happens to the word cloud in this exercise.
+
+This exercise uses `str_subset` from `stringr`. Keep in mind, other DataCamp courses cover regular expressions in more detail. As a reminder, the regular expression `^` matches the starting position within the exercise's bigrams.
+
+***Instruction:***
+
+The chardonnay tweets have been cleaned and organized into a DTM called `bigram_dtm`.
+
+- Create `bigram_dtm_m` by converting `bigram_dtm` to a matrix.
+
+- Create an object `freq` consisting of the word frequencies by applying `colSums()` on `bigram_dtm_m`.
+
+- Extract the character vector of word combinations with `names(freq)` and assign the result to `bi_words`.
+
+- Pass `bi_words` to `str_subset()` with the matching pattern `"^marvin"` to review all bigrams starting with "marvin".
+
+- Plot a simple `wordcloud()` passing `bi_words`, `freq` and `max.words = 15` into the function.
+
+```{r echo=FALSE}
+library(stringr)
+library(wordcloud)
+```
+
+```{r}
+# Create bigram_dtm_m
+bigram_dtm_m <- as.matrix(bigram_dtm)
+
+# Create freq
+freq <- colSums(bigram_dtm_m)
+
+# Create bi_words
+bi_words <- names(freq)
+
+# Examine part of bi_words
+str_subset(bi_words, pattern = "^marvin")
+
+# Plot a wordcloud
+wordcloud(bi_words, freq, max.words = 15)
+```
+
+##### 3.12 Different frequency criteria (video)
+
+**term weights**
+
+- default term freqyebct = simple word count
+
+- frequent words can mask insights
+
+- adjust term weight via TfIdf (term frequency-inverse document frequency)
+
+- words appearing in many documents are penalized
+
+**retaining document metadata**
+
+##### 3.13 Changing frequency weights 
+
+So far you've simply counted terms in documents in the `DocumentTermMatrix` or `TermDocumentMatrix`. In this exercise, you'll learn about `TfIdf` weighting instead of simple term frequency. `TfIdf` stands for term frequency-inverse document frequency and is used when you have a large corpora with limited term diversity.
+
+`TfIdf` counts terms (i.e. `Tf`), normalizes the value by document length, and then penalizes the value the more often a word appears among the documents. This is common sense; **if a word is commonplace it's important but not insightful**. This penalty aspect is captured in the inverse document frequency (i.e. Idf).
+
+For example, reviewing customer service notes may include the term "cu" as shorthand for customer. One note may state "the cu has a damaged package" and another as "cu called with question about delivery". With document frequency weighting, "cu" appears twice so it is expected to be informative. However in TfIdf, "cu" is penalized because it appears in all the documents. As a result "cu" isn't considered novel so its value is reduced towards 0 which lets other terms have higher values for analysis.
+
+***Instruction 1:***
+
+- Create `tdm`, a term frequency-based `TermDocumentMatrix()` using `text_corp`.
+
+- Create `tdm_m` by converting `tdm` to matrix form.
+
+- Examine the term frequency for "coffee", "espresso", and "latte" in a few tweets. Subset `tdm_m` to get rows `c("coffee", "espresso", "latte")` and columns 161 to 166.
+
+```{r echo=FALSE}
+clean_corpus <- function(corpus){
+  corpus <- tm_map(corpus, stripWhitespace)
+  corpus <- tm_map(corpus, removePunctuation)
+  corpus <- tm_map(corpus, content_transformer(tolower))
+  corpus <- tm_map(corpus, removeWords, c(stopwords("en")))
+  return(corpus)
+}
+text_corp <- clean_corpus(coffee_corpus)
+```
+
+```{r}
+# Create a TDM
+tdm <- TermDocumentMatrix(text_corp)
+
+# Convert it to a matrix
+tdm_m <- as.matrix(tdm)
+
+# Examine part of the matrix
+tdm_m[c("coffee", "espresso", "latte"), 161:166]
+```
+
+***Instruction 2:***
+
+- Edit the `TermDocumentMatrix()` to use `TfIdf` weighting. Pass `control = list(weighting = weightTfIdf)` as an argument to the function.
+
+- Run the code and compare the new scores to the first part of the exercise.
+
+```{r}
+# Edit the controls to use Tfidf weighting
+tdm <- TermDocumentMatrix(text_corp, 
+control = list(weighting = weightTfIdf))
+
+# Convert to matrix again
+tdm_m <- as.matrix(tdm)
+
+# Examine the same part: how has it changed?
+tdm_m[c("coffee", "espresso", "latte"), 161:166]
+```
+
+**Notes**
+
+Using TF weighting, coffee has a score of 1 in all tweets, which isn't that interesting. Using Tf-Idf, terms that are important in specific documents have a higher score.
+
+##### 3.14 Capturing metadata in tm 
+
+Depending on what you are trying to accomplish, you may want to keep metadata about the document when you create a corpus.
+
+To capture document level metadata, the column names and order must be:
+
+1. `doc_id` - a unique string for each document
+
+2. `text` - the text to be examined
+
+3. `...` - any other columns will be automatically catalogued as metadata.
+
+Sometimes you will need to rename columns in order to fit the expectations of `DataframeSource()`. The `names()` function is helpful for this.
+
+`tweets` exists in your worksapce as a data frame with columns "num", "text", "screenName", and "created".
+
+***Instruction:***
+
+- Rename the first column of `tweets` to "doc_id".
+
+- Set the document schema with `DataframeSource()` on the smaller `tweets` data frame.
+
+- Make the document collection a volatile corpus nested in the custom `clean_corpus()` function.
+
+- Apply `content()` to the first tweet with double brackets such as `text_corpus[[1]]` to see the cleaned plain text.
+
+- Confirm that all metadata was captured using the `meta()` function on the first document with single brackets.
+
+Remember, when accessing part of a corpus the double or single brackets make a difference! For this exercise you will use double brackets with `content()` and single brackets with `meta()`.
+
+```{r}
+# Rename columns
+names(tweets)[1] <- "doc_id"
+
+# Set the schema: docs
+docs <- DataframeSource(tweets)
+
+# Make a clean volatile corpus: text_corpus
+text_corpus <- clean_corpus( VCorpus(docs))
+
+# Examine the first doc content
+content(text_corpus[[1]])
+
+# Access the first doc metadata
+meta(text_corpus[1])
+```

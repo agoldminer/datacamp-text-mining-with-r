@@ -1,0 +1,188 @@
+---
+title: "introduction-to-text-analysis-in-r-chapter-1"
+author: "Xiaotian Sun"
+date: "09/02/2020"
+output: html_document
+---
+
+## 1. Wrangling Text
+
+##### 1.1 Text as data (video)
+
+##### 1.2 Airline tweets data
+
+The `twitter_data` data frame has over 7,000 tweets about airlines. The tweets have already been classified as either complaints or non-complaints in the `complaint_label` column. Let's get a sense of how many of these tweets are complaints.
+
+Be aware that this is real data from Twitter and as such there is always a risk that it may contain profanity or other offensive content (in this exercise, and any following exercises that also use real Twitter data).
+
+```{r echo=FALSE}
+twitter_data <- readRDS("ch_1_twitter_data.rds")
+```
+
+***Instruction :***
+
+- Load the `tidyverse` package.
+
+- Get a sense of the size and content of the data by printing `twitter_data`.
+
+- Filter `twitter_data` so it's just the complaints. How many complaints are in the data?
+
+```{r}
+# Load the tidyverse packages
+library(tidyverse)
+
+# Print twitter_data
+twitter_data
+
+# Print just the complaints in twitter_data
+twitter_data %>% 
+  filter(complaint_label == 'Complaint')
+```
+
+##### 1.3 Grouped summaries
+
+So there are more `non-complaints` than complaints in `twitter_data`. You might be starting to question whether or not this data is actually from Twitter! There are a few other columns of interest in twitter_data that would be helpful to explore before you get to the tweets themselves. Every tweet includes the number of followers that user has in the `usr_followers_count` column. Do you expect those who complain to have more users or fewer users, on average, than those who don't complain? You can use grouped summaries to quickly and easily provide an answer.
+
+***Instruction :***
+
+- Group the data by `complaint_label`.
+
+- Compute the average, minimum, and maximum, number of `usr_followers_count`.
+
+```{r}
+# Start with the data frame
+twitter_data %>% 
+  # Group the data by whether or not the tweet is a complaint
+  group_by(complaint_label) %>% 
+  # Compute the mean, min, and max follower counts
+  summarize(
+    avg_followers = mean(usr_followers_count),
+    min_followers = min(usr_followers_count),
+    max_followers = max(usr_followers_count)
+  )
+```
+
+##### 1.4 Counting categorical data (video)
+
+##### 1.5 Counting user types 
+
+Counts are the essential summary for categorical data. Since text is categorical, it's important to get comfortable computing counts. The `twitter_data` is composed of complaints and non-complaints, as indicated by the `complaint_label` column, and also includes a column indicating whether or not the user is verified (i.e., they have been confirmed by Twitter to be who they say they are) called `usr_verified`. Note that column is of type `<lgl>`, meaning logical. Do verified users complain more?
+
+***Instruction :***
+
+- Load the `tidyverse` package, which includes `dplyr` and `ggplot2`.
+
+- Filter the data to only keep tweets that are complaints.
+
+- Count the number of verified and non-verified users that have complained.
+
+```{r}
+# Load the tidyverse package
+library(tidyverse)
+
+twitter_data %>% 
+  # Filter for just the complaints
+  filter(complaint_label == 'Complaint') %>% 
+  # Count the number of verified and non-verified users
+  count(usr_verified)
+```
+
+##### 1.6 Summarizing user types 
+
+Since you can use the `count()` wrapper, why bother counting rows in a group as part of a grouped summary? Sometimes you want a more detailed summary, and knowing how to compute a count as part of a grouped summary that mixes numeric and categorical summaries can come in handy.
+
+***Instruction :***
+
+- Group `twitter_data` by whether or not a user is verified.
+
+- Compute the average number of followers for each type of user. Call this new column `avg_followers`.
+
+- Count the number of verified and non-verified users. For consistency, call this new column `n`.
+
+```{r}
+library(tidyverse)
+
+twitter_data %>% 
+  # Group by whether or not a user is verified
+  group_by(usr_verified) %>% 
+  summarize(
+    # Compute the average number of followers
+    avg_followers = mean(usr_followers_count),
+    # Count the number of users in each category
+    n = n()
+  )
+```
+
+##### 1.7 Tokenizing and cleaning (video)
+
+some natural language processing(NLP) vocabulary:
+
+- Bag of word: Words in a document are independent.
+
+- Every separate body of text is a document.
+
+- Every unique word is a term.
+
+- Every occurrence of a term is a token.
+
+- Creating a bag of words is called tokening.
+
+##### 1.8 Tokenizing and counting 
+
+Explore the content of the airline tweets in `twitter_data` through word counts. The content of each tweet is in the `tweet_text` column.
+
+***Instruction :***
+
+- Load the tidyverse and tidytext packages.
+
+- Tokenize the tweets in the `tweet_text` column.
+
+- Compute word counts using the tokenized text.
+
+- Arrange the counts in descending order.
+
+```{r}
+# Load the tidyverse and tidytext packages
+library(tidyverse)
+library(tidytext)
+
+tidy_twitter <- twitter_data %>% 
+  # Tokenize the twitter data
+  unnest_tokens(word, tweet_text) 
+
+tidy_twitter %>% 
+  # Compute word counts
+  count(word) %>% 
+  # Arrange the counts in descending order
+  arrange(desc(n))
+```
+
+##### 1.9 Cleaning and counting
+
+Remove stop words to explore the content of just the airline tweets classified as complaints in `twitter_data`.
+
+***Instruction :***
+
+- Tokenize the tweets in `twitter_data`. Name the column with tokenized words as `word`.
+
+- Remove the default stop words from the tokenized `twitter_data`.
+
+- Filter to keep the complaints only.
+
+- Compute word counts using the tokenized, cleaned text and arrange in descending order by count.
+
+```{r}
+tidy_twitter <- twitter_data %>% 
+  # Tokenize the twitter data
+  unnest_tokens(word, tweet_text) %>% 
+  # Remove stop words
+  anti_join(stop_words)
+
+tidy_twitter %>% 
+  # Filter to keep complaints only
+  filter(complaint_label == 'Complaint') %>% 
+  # Compute word counts and arrange in descending order
+  count(word) %>% 
+  arrange(desc(n))
+```
+

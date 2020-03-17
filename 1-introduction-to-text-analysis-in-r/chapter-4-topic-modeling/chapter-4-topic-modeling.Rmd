@@ -1,0 +1,389 @@
+---
+title: "introduction-to-text-analysis-in-r-chapter-4"
+author: "Xiaotian Sun"
+date: "09/02/2020"
+output: html_document
+---
+
+## 4. Topic Modeling
+
+##### 4.1 Latent Dirichlet allocation (video)
+
+*Unsupervised learning*
+
+Some more natural language processing (NLP) vocabulary:
+
+ - Latent Dirichlet allocation (LDA) is a standard topic model
+
+- A collection of documents is known as a corpus
+
+- Bag-of-words is treating every word in a document separately
+
+- Topic models nd patterns of words appearing together
+
+- Searching for patterns rather than predicting is known as unsupervised learning
+
+*Clustering vs.topic modeling*
+
+`Clustering`
+
+- Clusters are uncovered based on distance, which is continuous.
+
+- Every object is assigned to a single cluster.
+
+`Topic Modeling`
+
+- Topics are uncovered based on word frequency, which is discrete.
+
+- Every document is a mixture (i.e., partial member) of every topic.
+
+##### 4.2 Topics as word probabilities 
+
+`lda_topics` contains the topics output from an LDA run on the Twitter data. Remember that each topic is a collection of word probabilities for all of the unique words used in the corpus. In this case, each tweet is its own document and the `beta` column contains the word probabilities.
+
+***Instruction 1:***
+
+Print the output from an LDA run on the Twitter data. It is stored in `lda_topics`.
+
+```{r eval=FALSE}
+# Print the output from LDA run
+lda_topics
+```
+
+***Instruction 2:***
+
+Arrange the topics by word probabilities in descending order.
+
+```{r eval=FALSE}
+# Start with the topics output from the LDA run
+lda_topics %>% 
+  # Arrange the topics by word probabilities in descending order
+  arrange(desc(beta))
+```
+
+##### 4.3 Summarizing topics 
+
+Let's explore some of the implied features of the LDA output using some grouped summaries.
+
+***Instruction :***
+
+- Produce a grouped summary of the LDA output by topic.
+
+- Calculate the sum of the word probabilities.
+
+- Count the number of terms.
+
+```{r eval=FALSE}
+# Produce a grouped summary of the LDA output by topic
+lda_topics %>% 
+  group_by(topic) %>% 
+  summarize(
+    # Calculate the sum of the word probabilities
+    sum = sum(beta),
+    # Count the number of terms
+    n = n()
+  )
+```
+
+##### 4.4 Visualizing topics 
+
+Using what we've covered in previous chapters, let's visualize the topics produced by the LDA.
+
+***Instruction :***
+
+- Keep the top 10 highest word probabilities by topic.
+
+- Create `term2`, a factor ordering `term` by word probability.
+
+- Plot `term2` and the word probabilities.
+
+- Facet the bar plot by (i.e., `~`) topic.
+
+```{r eval=FALSE}
+word_probs <- lda_topics %>%
+  # Keep the top 10 highest word probabilities by topic
+  group_by(topic) %>% 
+  top_n(10, beta) %>% 
+  ungroup() %>%
+  # Create term2, a factor ordered by word probability
+  mutate(term2 = fct_reorder(term, beta))
+
+# Plot term2 and the word probabilities
+ggplot(word_probs, aes(x = term2, y = beta)) +
+  geom_col() +
+  # Facet the bar plot by topic
+  facet_wrap(~ topic, scales = "free") +
+  coord_flip()
+```
+
+##### 4.5 Document term matrices (video)
+
+##### 4.6 Creating a DTM
+
+Create a DTM using our `tidy_twitter` data. In this case, each tweet is considered a document. Print `tidy_twitter` in the console to confirm the column names.
+
+```{r echo=FALSE}
+library(tidyverse)
+library(tidytext)
+
+twitter_data <- readRDS("ch_1_twitter_data.rds")
+
+tidy_twitter <- twitter_data %>% 
+  # Tokenize the twitter data
+  unnest_tokens(word, tweet_text) %>% 
+  # Remove stop words
+  anti_join(stop_words)
+```
+
+
+***Instruction :***
+
+- Start with the tidied Twitter data.
+
+- Count each word used in each tweet.
+
+- Use the word counts by tweet to create a DTM.
+
+```{r}
+# Start with the tidied Twitter data
+tidy_twitter %>% 
+  # Count each word used in each tweet
+  count(word, tweet_id) %>% 
+  # Use the word counts by tweet to create a DTM
+  cast_dtm(tweet_id, word, n)
+```
+
+##### 4.7 Evaluating a DTM as a matrix 
+
+Let's practice casting our tidy data into a DTM and evaluating the DTM by treating it as a matrix.
+
+In this exercise, you will create a DTM again, but with a much smaller subset of the twitter data (`tidy_twitter_subset`).
+
+***Instruction :***
+
+- Cast the word counts by tweet into a DTM and assign it to `dtm_twitter`.
+
+- Coerce `dtm_twitter` into a matrix called `matrix_twitter`.
+
+- Print rows 1 through 5 and columns 90 through 95.
+
+```{r eval=FALSE}
+# Assign the DTM to dtm_twitter
+dtm_twitter <- tidy_twitter_subset %>% 
+  count(word, tweet_id) %>% 
+  # Cast the word counts by tweet into a DTM
+  cast_dtm(tweet_id, word, n)
+
+# Coerce dtm_twitter into a matrix called matrix_twitter
+matrix_twitter <- as.matrix(dtm_twitter)
+
+# Print rows 1 through 5 and columns 90 through 95
+matrix_twitter[1:5, 90:95]
+```
+
+##### 4.8 Running topic models (video)
+
+##### 4.9 Fitting an LDA
+
+It's time to run your first topic model! As discussed, the three additional arguments of the `LDA()` function are critical for properly running a topic model. Note that running the `LDA()` function could take about 10 seconds. The `tidyverse` and `tidytext` packages along with the `tidy_twitter` dataset have been loaded for you.
+
+***Instruction :***
+
+- Load the `topicmodels` package.
+
+- Cast the word counts by tweet into a DTM.
+
+- Run an LDA with 2 topics and a Gibbs sampler.
+
+```{r}
+# Load the topicmodels package
+library(topicmodels)
+
+# Cast the word counts by tweet into a DTM
+dtm_twitter <- tidy_twitter %>% 
+  count(word, tweet_id) %>% 
+  cast_dtm(tweet_id, word, n)
+
+# Run an LDA with 2 topics and a Gibbs sampler
+lda_out <- LDA(
+  dtm_twitter,
+  k = 2,
+  method = "Gibbs",
+  control = list(seed = 42)
+)
+```
+
+*Notes:*
+
+The Gibbs sampler can take some time to run, depending on the amount of data and the number of topics specified.
+
+##### 4.10 Tidying LDA output 
+
+We've loaded the LDA output `lda_out` from the previous exercise. While there are a number of things of interest in the output, the topics themselves are of general interest. Let's extract these values.
+
+***Instruction :***
+
+- Print a summary of the topic model output using `glimpse()`.
+
+- Tidy the matrix of word probabilities.
+
+- Arrange the topics by word probabilities in descending order.
+
+```{r}
+# Glimpse the topic model output
+glimpse(lda_out)
+
+# Tidy the matrix of word probabilities
+lda_topics <- lda_out %>% 
+  tidy(matrix = "beta")
+
+# Arrange the topics by word probabilities in descending order
+lda_topics %>% 
+  arrange(desc(beta))
+```
+
+##### 4.11 Comparing LDA output 
+
+We've only run a single LDA with a specific number of topics. The tidied output from that model, `lda_out_tidy`, has been loaded along with `dtm_twitter` in your workspace. Now run LDA with 3 topics and compare the outputs.
+
+> > lda_out_tidy
+# A tibble: 35,928 x 3
+   topic term        beta
+   <int> <chr>      <dbl>
+ 1     1 flight   0.0343 
+ 2     1 time     0.0102 
+ 3     2 service  0.00882
+ 4     1 plane    0.00688
+ 5     1 trip     0.00614
+ 6     2 customer 0.00604
+ 7     1 delayed  0.00596
+ 8     2 airline  0.00593
+ 9     1 hours    0.00532
+10     1 day      0.00499
+# ... with 35,918 more rows
+
+***Instruction :***
+
+- Run an LDA with 3 topics and a Gibbs sampler (this may take 10 or more seconds).
+
+- Tidy the matrix of word probabilities.
+
+- Arrange the topics by word probabilities in descending order.
+
+```{r}
+# Run an LDA with 3 topics and a Gibbs sampler
+lda_out2 <- LDA(
+  dtm_twitter,
+  k = 3,
+  method = "Gibbs",
+  control = list(seed = 42)
+)
+
+# Tidy the matrix of word probabilities
+lda_topics2 <- lda_out2 %>% 
+  tidy(matrix = "beta")
+
+# Arrange the topics by word probabilities in descending order
+lda_topics2 %>% 
+  arrange(desc(beta))
+```
+
+##### 4.12 Interpreting topics (video)
+
+*The art of model selection*
+
+- Adding topics that are different is good
+
+- If we start repeating topics, we've gone too far
+
+- Name the topics based on the combination of high-probability words
+
+##### 4.13 Naming three topics
+
+Let's compare two possible topic model solutions and try naming the topics. Let's start with a three topic model named `lda_topics2`.
+
+***Instruction :***
+
+- Select the top 15 terms by topic and reorder term.
+
+- Plot `word_probs2`, color and facet based on topic.
+
+- What would you name these three topics?
+
+```{r}
+# Select the top 15 terms by topic and reorder term
+word_probs2 <- lda_topics2 %>% 
+  group_by(topic) %>% 
+  top_n(15, beta) %>% 
+  ungroup() %>%
+  mutate(term2 = fct_reorder(term, beta))
+
+# Plot word_probs2, color and facet based on topic
+ggplot(
+  word_probs2, 
+  aes(term2, beta, fill = as.factor(topic))
+) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~topic, scales = "free") +
+  coord_flip()
+```
+
+##### 4.14 Naming four topics
+
+Now let's compare the previous solution with a four topic model, `lda_topics3`.
+
+```{r echo=FALSE}
+# Run an LDA with 3 topics and a Gibbs sampler
+lda_out3 <- LDA(
+  dtm_twitter,
+  k = 4,
+  method = "Gibbs",
+  control = list(seed = 42)
+)
+
+# Tidy the matrix of word probabilities
+lda_topics3 <- lda_out3 %>% 
+  tidy(matrix = "beta")
+
+# Arrange the topics by word probabilities in descending order
+lda_topics3 %>% 
+  arrange(desc(beta))
+```
+
+***Instruction :***
+
+- Select the top 15 terms by topic and reorder term.
+
+- Plot `word_probs3`, color and facet based on topic.
+
+- What would you name these four topics?
+
+```{r}
+# Select the top 15 terms by topic and reorder term
+word_probs3 <- lda_topics3 %>% 
+  group_by(topic) %>% 
+  top_n(15, beta) %>% 
+  ungroup() %>%
+  mutate(term2 = fct_reorder(term, beta))
+
+# Plot word_probs3, color and facet based on topic
+ggplot(
+  word_probs3, 
+  aes(term2, beta, fill = as.factor(topic))
+) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~topic, scales = "free") +
+  coord_flip()
+```
+
+##### 4.15 Wrap-up
+
+*Summary*
+
+- Tokenizing text and removing stop words
+
+- Visualizing word counts
+
+- Conducting sentiment analysis
+
+- Running and interpreting topic models

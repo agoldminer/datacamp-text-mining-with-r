@@ -1,0 +1,445 @@
+---
+title: "chapter-4-more-advanced-matching-and-manipulation"
+author: "Xiaotian Sun"
+date: "14/03/2020"
+output: html_document
+---
+
+## 4. More Advanced Matching and Manipulation
+
+##### 4.1 Capturing (video)
+
+- str_match()
+
+- capture()
+
+##### 4.2 Capturing parts of a pattern 
+
+In `rebus`, to denote a part of a regular expression you want to capture, you surround it with the function `capture()`. For example, a simple pattern to match an email address might be,
+
+>email <- one_or_more(WRD) %R% 
+  "@" %R% one_or_more(WRD) %R% 
+  DOT %R% one_or_more(WRD)
+str_view("(wolverine@xmen.com)", pattern = email)  
+
+If you want to capture the part before the `@`, you simply wrap that part of the regular expression in `capture()`:
+
+>email <- capture(one_or_more(WRD)) %R% 
+  "@" %R% one_or_more(WRD) %R% 
+  DOT %R% one_or_more(WRD)
+str_view("(wolverine@xmen.com)", pattern = email)  
+
+The part of the string that matches hasn't changed, but if we pull out the match with `str_match()` we get access to the captured piece:
+
+> str_match("(wolverine@xmen.com)", pattern =  email)  
+
+You'll explore this behavior with some more super hero email addresses.
+
+***Instruction 1:***
+
+- Add some more `capture()` calls to the `email` pattern, to capture the part after the `@` but before the `.`; and the part after the `.`.
+
+- Check that the whole email address is matched by using `str_view()` on `hero_contacts` with the `email` pattern.
+
+```{r echo=FALSE}
+library(rebus)
+
+library(stringr)
+
+hero_contacts <- c("(wolverine@xmen.com)",  "wonderwoman@justiceleague.org", "thor@avengers.com")
+```
+
+```{r}
+# Capture part between @ and . and after .
+email <- capture(one_or_more(WRD)) %R% 
+  "@" %R% capture(one_or_more(WRD)) %R% 
+  DOT %R% capture(one_or_more(WRD))
+
+# Check match hasn't changed
+str_view(hero_contacts, pattern = email)
+```
+
+***Instruction 2:***
+
+- Use `str_match()` to pull out the match and capture the `email` pattern in `hero_contacts`, and print it to confirm all parts are captured.
+
+- Assign the third column of `email_parts` to `host` and print it.
+
+```{r}
+# Pattern from previous step
+email <- capture(one_or_more(WRD)) %R% 
+  "@" %R% capture(one_or_more(WRD)) %R% 
+  DOT %R% capture(one_or_more(WRD))
+  
+# Pull out match and captures
+email_parts <- str_match(hero_contacts, pattern = email)
+email_parts
+
+# Save host
+host <- email_parts[, 3]
+host
+```
+
+##### 4.3 Pulling out parts of a phone number 
+
+You can now go back to the phone number example from the previous chapter. You developed a pattern to extract the parts of string that looked like phone numbers, and now you have the skills to pull out the pieces of the number. Let's see if you can put your skills together to output the first phone number in each string in a common format.
+
+***Instruction:***
+
+We've put the pieces of your pattern in your workspace, along with some text containing phone numbers in the variable `contact`.
+
+- `phone_pattern` is the pattern you developed in the last chapter. Edit it to `capture()` each sequence of numbers.
+
+- Use `str_match()` to grab all the pieces into `phone_numbers`.
+
+- Put together the pieces with `str_c()` into the format `(XXX) XXX-XXXX`.
+
+```{r echo=FALSE}
+contact <- c("Call me at 555-555-0191",
+             "123 Main St",
+             "(555) 555 0191",
+             "Phone: 555.555.0191 Mobile: 555.555.0192")
+
+three_digits <- DGT %R% DGT %R% DGT
+four_digits <- three_digits %R% DGT
+separator <- ("-.() ")
+phone_pattern <- optional(OPEN_PAREN) %R% 
+  three_digits %R% 
+  zero_or_more(separator) %R% 
+  three_digits %R% 
+  zero_or_more(separator) %R%
+  four_digits
+  
+```
+
+```{r}
+# View text containing phone numbers
+contact
+
+# Add capture() to get digit parts
+phone_pattern <- capture(three_digits) %R% zero_or_more(separator) %R% 
+           capture(three_digits) %R% zero_or_more(separator) %R%
+           capture(four_digits)
+           
+# Pull out the parts with str_match()
+phone_numbers <- str_match(contact, phone_pattern)
+
+# Put them back together
+str_c(
+  "(",
+  phone_numbers[, 2],
+  ") ",
+  phone_numbers[, 3],
+  "-",
+  phone_numbers[, 4])
+```
+
+##### 4.4 Extracting age and gender again
+
+You can now also take another look at your pattern for pulling out age and gender from the injury narratives. In the last chapter you took two steps to extract the pattern and then pull it apart. Take a go at doing it in one step!
+
+***Instruction 1:***
+
+We've written out your whole pattern here rather than use the pattern variables you created, because you'll need to capture pieces that were inside those patterns.
+
+- Add `capture()` to your pattern to pull out the `age`, `unit` and `gender` parts of the pattern.
+
+- Use `str_match()` to pull them out of `narratives`, and take a look.
+
+```{r echo =FALSE}
+narratives <- readRDS("narratives.rds")
+```
+
+```{r}
+# narratives has been pre-defined
+narratives
+
+# Add capture() to get age, unit and sex
+pattern <- capture(optional(DGT) %R% DGT) %R%  
+  optional(SPC) %R% capture(or("YO", "YR", "MO")) %R%
+  optional(SPC) %R% capture(or("M", "F"))
+
+# Pull out from narratives
+str_match(narratives, pattern = pattern)
+```
+
+***Instruction 2:***
+
+- That's pretty good, but it might be nice just to capture the first letter of the units, e.g. the `Y` or `M`. Alter your pattern to capture a `Y` or `M`, and then `optional()`ly match `O` or `R`.
+
+- Check your new pattern still picks out the right pieces with `str_view()`.
+
+- Pull out the pieces with `str_match()`.
+
+```{r}
+# Edit to capture just Y and M in units
+pattern2 <- capture(optional(DGT) %R% DGT) %R%  
+  optional(SPC) %R% capture(or("Y", "M")) %R% optional(or("O","R")) %R%
+  optional(SPC) %R% capture(or("M", "F"))
+
+# Check pattern
+str_view(narratives, pattern = pattern2)
+
+# Pull out pieces
+str_match(narratives, pattern = pattern2)
+```
+
+##### 4.5 Backreferences (video)
+
+##### 4.6 Using backreferences in patterns 
+
+Backreferences can be useful in matching because they allow you to find repeated patterns or words. Using a backreference requires two things: you need to `capture()` the part of the pattern you want to reference, and then you refer to it with `REF1`.
+
+Take a look at this pattern: `capture(LOWER) %R% REF1`. It matches and captures any lower case character, then is followed by the captured character: it detects repeated characters regardless of what character is repeated. To see it in action try this:
+
+>str_view(c("hello", "sweet", "kitten"), 
+  pattern = capture(LOWER) %R% REF1)
+
+If you capture more than one thing you can refer to them with `REF2`, `REF3` etc. up to `REF9`, counting the captures from the left of the pattern.
+
+Let's practice with `boy_names` again. You might notice a change in this dataset. We've converted all names to lower case; you'll learn how to do that in the next chapter.
+
+***Instruction 1:***
+
+In each case, assign the pattern argument, then view the matches by running the `str_view()` code.
+
+See all the `boy_names` with a letter repeated three times, by extending the pattern in the text above with another `REF1`. Assign the pattern to `repeated_three_times`.
+
+```{r echo=FALSE}
+library(tidyverse)
+library(babynames)
+babynames_2014 <- filter(babynames, year == 2014)
+boy_names <- filter(babynames_2014, sex == "M")$name
+girl_names<- filter(babynames_2014, sex == "F")$name
+```
+
+```{r}
+# See names with three repeated letters
+repeated_three_times <- capture(LOWER) %R% REF1 %R% REF1
+
+# Test it
+str_view(boy_names, pattern = repeated_three_times, match = TRUE)
+```
+
+***Instruction 2:***
+
+See all the `boy_names` with a pair of letters repeated twice, e.g. `abab`, by capturing two lower case characters, then referring to the capture with `REF1`. Assign the pattern to `pair_of_repeated`.
+
+```{r}
+# See names with a pair of repeated letters, egeg. abab
+pair_of_repeated <- capture(LOWER %R% LOWER) %R% REF1
+
+# Test it
+str_view(boy_names, pattern = pair_of_repeated, match = TRUE)
+```
+
+***Instruction 3:***
+
+See all the `boy_names` with a pair of letter followed by their reverse, e.g. `abba`, by capturing two lower case characters separately and combining with `REF2` and `REF1`. Assign the pattern to `pair_that_reverses`.
+
+```{r}
+# See names with a pair that reverses, e.g. abba
+pair_that_reverses <- capture(LOWER) %R% capture(LOWER) %R% REF2 %R% REF1
+
+# Test it
+str_view(boy_names, pattern = pair_that_reverses, match = TRUE)
+```
+
+***Instruction 4:***
+
+See all the `boy_names` that are a four letter palindrome (a name that reads the same forwards and backwards) by wrappping the previous pattern in `exactly()`. Assign the pattern to `four_letter_palindrome`.
+
+```{r}
+# Four letter palindrome names
+four_letter_palindrome <- exactly(
+  capture(LOWER) %R% capture(LOWER) %R% REF2 %R% REF1
+)
+
+# Test it
+str_view(boy_names, pattern = four_letter_palindrome, match = TRUE)
+```
+
+##### 4.7 Replacing with regular expressions
+
+Now, you've mastered matching with backreferences, you'll build up to replacing with backreferences, but first let's review `str_replace()` now that you've got regular expressions under your belt.
+
+Remember `str_replace()` takes three arguments, `string` a vector of strings to do the replacements in, `pattern` that identifies the parts of strings to replace and `replacement` the thing to use as a replacement.
+
+`replacement` can be a vector, the same length as `string`, each element specifies the replacement to be used in each string. Let's practice by anonymizing some of the contact objects you've seen so far.
+
+***Instruction:***
+
+Text containing phone numbers has been pre-defined in a variable named `contact`.
+
+- Replace a digit in `contact` with `"X"` using `str_replace(`)`.
+
+- Replace all digits in `contact` with `"X"` using `str_replace_all()`. (`str_replace()` will only replace the first match to the `pattern`. `str_replace_all()` will replace all matches to the pattern.)
+
+- Replace all digits in `contact` using `str_replace_all()`, but now specify the vector `c("X", ".", "*", "_")` as `replacement`. Notice how now each string uses a different replacement character.
+
+```{r}
+# View text containing phone numbers
+contact
+
+# Replace digits with "X"
+str_replace(contact, pattern = DGT, replacement = "X")
+
+# Replace all digits with "X"
+str_replace_all(contact, pattern = DGT, replacement = "X")
+
+# Replace all digits with different symbol
+str_replace_all(contact, pattern = DGT, 
+  replacement = c("X", ".", "*", "_"))
+```
+
+##### 4.8 Replacing with backreferences 
+
+The `replacement` argument to `str_replace()` can also include backreferences. This works just like specifying patterns with backreferences, except the capture happens in the `pattern` argument, and the backreference is used in the `replacement` argument.
+
+>x <- c("hello", "sweet", "kitten")
+str_replace(x, capture(ANY_CHAR), str_c(REF1, REF1))
+
+`capture(ANY_CHAR)` will match the first character no matter what it is. Then the replacement `str_c(REF1, REF1)` combines the captured character with itself, in effect doubling the first letter of each string.
+
+You are going to use this to create some alternative, more lively accident narratives.
+
+The strategy you'll take is to match words ending in `"ING"` then replace them with an adverb followed by the original word.
+
+***Instruction:***
+
+- Build a pattern that finds words that end in `"ING"`. You'll want to check it against `narratives` using `str_view()`.
+
+- Test out the replacement by using `str_replace()` with your pattern (don't forget to `capture()` it!) and a replacement `str_c("CARELESSLY", REF1, sep = " ")`.
+
+- Build a vector with one adverb for each narrative by sampling 10 elements from `adverbs`.
+
+- Do the final replacement by using `str_c(adverbs_10, REF1, sep = " ")`.
+
+```{r}
+adverbs <- readRDS("adverbs.rds")
+```
+
+```{r}
+# Build pattern to match words ending in "ING"
+pattern <- one_or_more(WRD) %R% "ING"
+str_view(narratives, pattern)
+
+# Test replacement
+str_replace(narratives, capture(pattern), 
+  str_c("CARELESSLY", REF1, sep = " "))
+
+# One adverb per narrative
+adverbs_10 <- sample(adverbs, 10)
+
+# Replace "***ing" with "adverb ***ing"
+str_replace(narratives, 
+  capture(pattern),
+  str_c(adverbs_10, REF1, sep = " "))  
+```
+
+##### 4.9 Unicode and pattern matching (video)
+
+##### 4.10 Matching a specific code point or code groups 
+
+Things can get tricky when some characters can be specified two ways, for example è, an e with a grave accent, can be specified either with the single code point `\u00e8` or the combination of a `\u0065` and a combining grave accent `\u0300`. They look the same:
+
+>x <- c("\u00e8", "\u0065\u0300")
+writeLines(x)
+
+But, specifying the single code point only matches that version:
+
+>str_view(x, "\u00e8")
+
+The `stringi` package that `stringr` is built on contains functions for converting between the two forms. `stri_trans_nfc()` composes characters with combining accents into a single character. `stri_trans_nfd()` decomposes character with accents into separate letter and accent characters. You can see how the characters differ by looking at the hexadecimal codes.
+
+>as.hexmode(utf8ToInt(stri_trans_nfd("\u00e8")))
+as.hexmode(utf8ToInt(stri_trans_nfc("\u0065\u0300")))
+
+In Unicode, an accent is known as a diacritic Unicode Property, and you can match it using the `rebus` value` UP_DIACRITIC`.
+
+Vietnamese makes heavy use of diacritics to denote the tones in its words. In this exercise, you'll manipulate the diacritics in the names of Vietnamese rulers.
+
+***Instruction:***
+
+Names of rulers from the 18th Century Vietnamese Tây Sơn dynasty are shown in the script.
+
+- `tay_son_builtin` has the accents built into each letter. Run the code that defines and prints this variable.
+
+- Call `stri_trans_nfd()` to decompose the letters with accents into separate letter and accent characters, and assign the result to `tay_son_separate`.
+
+- Print `tay_son_separate` to verify the names still display the same way.
+
+- View all the accents by calling `str_view_all()` and matching `UP_DIACRITIC`. The match is shown after the letter that the diacritic belongs to.
+
+```{r}
+library("stringi")
+```
+
+```{r}
+# Names with builtin accents
+(tay_son_builtin <- c(
+  "Nguy\u1ec5n Nh\u1ea1c", 
+  "Nguy\u1ec5n Hu\u1ec7",
+  "Nguy\u1ec5n Quang To\u1ea3n"))
+
+# Convert to separate accents
+tay_son_separate <- stri_trans_nfd(tay_son_builtin)
+
+# Verify that the string prints the same
+tay_son_separate
+
+# Match all accents
+str_view_all(tay_son_separate, pattern = UP_DIACRITIC)
+```
+
+##### 4.11 Matching a single grapheme 
+
+A related problem is matching a single character. You've used `ANY_CHAR` to do this up until now, but it will only match a character represented by a single code point. Take these three names:
+
+>x <- c("Adele", "Ad\u00e8le", "Ad\u0065\u0300le")
+writeLines(x)
+
+They look the similar, but this regular expression only matches two of them:
+
+>str_view(x, "Ad" %R% ANY_CHAR %R% "le")
+
+because in the third name è is represented by two code points. The Unicode standard has a concept of a grapheme that represents a display character, but may be composed of many code points. To match any grapheme you can use `GRAPHEME`.
+
+>str_view(x, "Ad" %R% GRAPHEME %R% "le")
+
+Names of rulers from the Vietnamese Tây Sơn dynasty, with diacritics given as separate graphemes, is pre-defined as `tay_son_separate`.
+
+***Instruction 1:***
+
+Use `str_view_all()`, with `ANY_CHAR` as a pattern to view each character in `tay_son_separate`.
+
+```{r}
+# tay_son_separate has been pre-defined
+tay_son_separate
+
+# View all the characters in tay_son_separate
+str_view_all(tay_son_separate, pattern = ANY_CHAR)
+```
+
+***Instruction 2:***
+
+Do the same again with `GRAPHEME` as a pattern, to see the difference between characters and graphemes.
+
+```{r}
+# View all the graphemes in tay_son_separate
+str_view_all(tay_son_separate, pattern =  GRAPHEME)
+```
+
+***Instruction 3:***
+
+- Use `stri_trans_nfc()` to combine the diacritics with their associated characters, storing the result as `tay_son_builtin`.
+
+- Use `str_view_all()` to view each grapheme in `tay_son_builtin`.
+
+```{r}
+# Combine the diacritics with their letters
+tay_son_builtin <- stri_trans_nfc(tay_son_separate)
+
+# View all the graphemes in tay_son_builtin
+str_view_all(tay_son_builtin, pattern = GRAPHEME)
+```

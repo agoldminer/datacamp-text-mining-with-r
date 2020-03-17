@@ -1,0 +1,498 @@
+---
+title: "chapter-4-battle-of-the-tech-giants-for-talent"
+author: "Xiaotian Sun"
+date: "15/02/2020"
+output: html_document
+---
+
+## 4. Battle of the Tech Giants for Talent
+
+##### 4.1 Amazon vs. Google (video)
+
+**text mining workflow**
+
+- 1. Problem definition & specific goals
+
+- 2. Identify text to be collected
+
+- 3. Text organization
+
+- 4. Feature extraction
+
+- 5. Analysis
+
+- 6. Reach an insight
+
+##### 4.2 Organizing a text mining project 
+
+##### 4.3 Step 1: Problem definition 
+
+- Does Amazon or Google have a better perceived pay according to online reviews?
+
+- Does Amazon or Google have a better work-life balance according to current employees?
+
+##### 4.4 Step 2: Identifying the text sources 
+
+Employee reviews can come from various sources. If your human resources department had the resources, you could have a third party administer focus groups to interview employees both internally and from your competitor.
+
+Forbes and others publish articles about the "best places to work", which may mention Amazon and Google. Another source of information might be anonymous online reviews from websites like Indeed, Glassdoor or CareerBliss.
+
+Here, we'll focus on a collection of anonymous online reviews.
+
+***Instruction:***
+
+- View the structure of `amzn` with `str()` to get its dimensions and a preview of the data.
+
+- Create `amzn_pros` from the positive reviews column `amzn$pros`.
+
+- Create `amzn_cons` from the negative reviews column `amzn$cons`.
+
+- Print the structure of `goog` with `str()` to get its dimensions and a preview of the data.
+
+- Create `goog_pros` from the positive reviews column `goog$pros`.
+
+- Create `goog_cons` from the negative reviews column `goog$cons`.
+
+```{r echo=FALSE}
+amzn <- read.csv("500-amzn.csv")
+
+goog <- read.csv("500-goog.csv")
+```
+
+```{r}
+# Print the structure of amzn
+str(amzn)
+
+# Create amzn_pros
+amzn_pros <- amzn$pros
+
+# Create amzn_cons
+amzn_cons <- amzn$cons
+
+# Print the structure of goog
+str(goog)
+
+# Create goog_pros
+goog_pros <- goog$pros
+
+# Create goog_cons
+goog_cons <- goog$cons
+```
+
+##### 4.5 Step 3:Text organization (video)
+
+- text oragnization with qdap
+
+- text organization with tm
+
+- cleaning your corpora 
+
+##### 4.6 Text organization 
+
+***Instruction 1:***
+
+- Apply `qdap_clean()` to `amzn_pros`, assigning to `qdap_cleaned_amzn_pros`.
+
+- Create a vector source (`VectorSource()`) from `qdap_cleaned_amzn_pros`, then turn it into a volatile corpus (`VCorpus()`), assigning to `amzn_p_corp`.
+
+- Create `amzn_pros_corp` by applying `tm_clean()` to `amzn_p_corp`.
+
+```{r echo=FALSE}
+library(qdap)
+library(tm)
+
+# Clean with qdap
+qdap_clean <- function(x) {
+  x <- replace_abbreviation(x)
+  x <- replace_contraction(x)
+  x <- replace_number(x)
+  x <- replace_ordinal(x)
+  x <- replace_symbol(x)
+  x <- tolower(x)
+  return(x)
+}
+
+# Clean with tm
+tm_clean <- function(corpus) {
+  corpus <- tm_map(corpus, removePunctuation)
+  corpus <- tm_map(corpus, stripWhitespace)
+  corpus <- tm_map(corpus, removeWords, 
+                   c(stopwords("en"), "Google", "Amazon", "company"))
+  return(corpus)
+}
+```
+
+```{r}
+# qdap_clean the text
+qdap_cleaned_amzn_pros <- qdap_clean(amzn_pros)
+
+# Source and create the corpus
+amzn_p_corp <- VCorpus(VectorSource(qdap_cleaned_amzn_pros))
+
+# tm_clean the corpus
+amzn_pros_corp <- tm_clean(amzn_p_corp)
+```
+
+***Instruction 2:***
+- Apply `qdap_clean()` to `amzn_cons`, assigning to `qdap_cleaned_amzn_cons`.
+
+- Create a vector source from `qdap_cleaned_amzn_cons`, then turn it into a volatile corpus, assigning to `amzn_c_corp`.
+
+- Create `amzn_cons_corp` by applying `tm_clean()` to `amzn_c_corp`.
+
+```{r}
+# qdap_clean the text
+qdap_cleaned_amzn_cons <- qdap_clean(amzn_cons)
+
+# Source and create the corpus
+amzn_c_corp <- VCorpus(VectorSource(qdap_cleaned_amzn_cons))
+
+# tm_clean the corpus
+amzn_cons_corp <- tm_clean(amzn_c_corp)
+```
+
+##### 4.7 Working with Google reviews 
+
+Now that the Amazon reviews have been cleaned, the same must be done for the Google reviews. `qdap_clean()` and `tm_clean()` are available in your workspace to help you clean goog_pros and goog_cons.
+
+***Instruction 1:***
+
+- Apply `qdap_clean()` to `goog_pros`, assigning to `qdap_cleaned_goog_pros`.
+
+- Create a vector source (`VectorSource()`) from `qdap_cleaned_goog_pros`, then turn it into a volatile corpus (`VCorpus()`), assigning to `goog_p_corp`.
+
+- Create `goog_pros_corp` by applying `tm_clean()` to `goog_p_corp`.
+
+```{r}
+# qdap_clean the text
+qdap_cleaned_goog_pros <- qdap_clean(goog_pros)
+
+# Source and create the corpus
+goog_p_corp <- VCorpus(VectorSource(qdap_cleaned_goog_pros))
+
+# tm_clean the corpus
+goog_pros_corp <- tm_clean(goog_p_corp)
+```
+
+***Instruction 2:***
+
+- Apply `qdap_clean()` to `goog_cons`, assigning to `qdap_cleaned_goog_cons`.
+
+- Create a vector source from `qdap_cleaned_goog_cons`, then turn it into a volatile corpus, assigning to `goog_c_corp`.
+
+- Create `goog_cons_corp` by applying `tm_clean()` to `goog_c_corp`.
+
+```{r}
+# qdap clean the text
+qdap_cleaned_goog_cons <- qdap_clean(goog_cons)
+
+# Source and create the corpus
+goog_c_corp <- VCorpus(VectorSource(qdap_cleaned_goog_cons))
+
+# tm clean the corpus
+goog_cons_corp <- tm_clean(goog_c_corp)
+```
+
+##### 4.8 Steps 4 & 5: Feature extraction & analysis 
+
+##### 4.9 Feature extraction & analysis: amzn_pros 
+
+`amzn_pros_corp`, `amzn_cons_corp`, `goog_pros_corp` and `goog_cons_corp` have all been preprocessed, so now you can extract the features you want to examine. Since you are using the bag of words approach, you decide to create a bigram `TermDocumentMatrix` for Amazon's positive reviews corpus, `amzn_pros_corp`. From this, you can quickly create a `wordcloud()` to understand what phrases people positively associate with working at Amazon.
+
+The function below uses `RWeka` to tokenize two terms and is used behind the scenes in this exercise.
+
+>tokenizer <- function(x) {
+  NGramTokenizer(x, Weka_control(min = 2, max = 2))
+}
+
+***Instruction:***
+
+- Create `amzn_p_tdm` as a `TermDocumentMatrix` from `amzn_pros_corp`. Make sure to add `control = list(tokenize = tokenizer)` so that the terms are bigrams.
+
+- Create `amzn_p_tdm_m` from `amzn_p_tdm` by using the `as.matrix()` function.
+
+- Create `amzn_p_freq` to obtain the term frequencies from `amzn_p_tdm_m`.
+
+- Create a `wordcloud()` using `names(amzn_p_freq)` as the words, `amzn_p_freq` as their frequencies, and `max.words = 25` and `color = "blue"` for aesthetics.
+
+```{r echo=FALSE}
+library(wordcloud)
+library(RWeka)
+# Alter amzn_pros
+amzn_pros <- qdap_clean(amzn_pros)
+
+# Alter amzn_cons
+amzn_cons <- qdap_clean(amzn_cons)
+
+# I need to remove NAs before creating the corpus so the RWeka tokenizer will work later
+# maybe this should be done in a cleaning funtion. Just seeing if this works for now. 
+amzn_pros[which(is.na(amzn_pros))] <- "NULL"
+amzn_cons[which(is.na(amzn_cons))] <- "NULL"
+
+# Create az_p_corp 
+az_p_corp <- VCorpus(VectorSource(amzn_pros))
+
+# Create az_c_corp
+az_c_corp <- VCorpus(VectorSource(amzn_cons))
+
+# Create amzn_pros_corp
+amzn_pros_corp <- tm_clean(az_p_corp)
+
+# Create amzn_cons_corp
+amzn_cons_corp <- tm_clean(az_c_corp)
+
+# Create a tokenizer
+tokenizer <- function(x)
+  NGramTokenizer(x, Weka_control(min = 2, max = 2))
+```
+
+```{r}
+# Create amzn_p_tdm
+amzn_p_tdm <- TermDocumentMatrix(
+  amzn_pros_corp, 
+  control = list(tokenize = tokenizer))
+
+# Create amzn_p_tdm_m
+amzn_p_tdm_m <- as.matrix(amzn_p_tdm)
+
+# Create amzn_p_freq
+amzn_p_freq <- rowSums(amzn_p_tdm_m)
+
+# Plot a wordcloud using amzn_p_freq values
+wordcloud(names(amzn_p_freq),
+  amzn_p_freq,
+  max.words = 25, 
+  color = "blue")
+```
+
+##### 4.10 Feature extraction & analysis: amzn_cons 
+
+You now decide to contrast this with the `amzn_cons_corp` corpus in another bigram TDM. Of course, you expect to see some different phrases in your word cloud.
+
+Once again, you will use this custom function to extract your bigram features for the visual:
+
+>tokenizer <- function(x) 
+  NGramTokenizer(x, Weka_control(min = 2, max = 2))
+  
+***Instruction:***
+
+- Create `amzn_c_tdm` by converting `amzn_cons_corp` into a `TermDocumentMatrix` and incorporating the bigram function `control = list(tokenize = tokenizer)`.
+
+- Create `amzn_c_tdm_m` as a matrix version of `amzn_c_tdm`.
+
+- Create `amzn_c_freq` by using `rowSums()` to get term frequencies from `amzn_c_tdm_m`.
+
+- Create a `wordcloud()` using `names(amzn_c_freq)` and the values `amzn_c_freq`. Use the arguments `max.words = 25` and `color = "red"` as well.
+
+```{r}
+# Create amzn_c_tdm
+amzn_c_tdm <- TermDocumentMatrix(
+  amzn_cons_corp,
+  control = list(tokenize = tokenizer))
+
+# Create amzn_c_tdm_m
+amzn_c_tdm_m <- as.matrix(amzn_c_tdm)
+
+# Create amzn_c_freq
+amzn_c_freq <- rowSums(amzn_c_tdm_m)
+
+# Plot a wordcloud of negative Amazon bigrams
+wordcloud(names(amzn_c_freq), amzn_c_freq,
+  max.words = 25, color = "red")
+```
+
+##### 4.11 amzn_cons dendrogram 
+
+It seems there is a strong indication of long working hours and poor work-life balance in the reviews. As a simple clustering technique, you decide to perform a hierarchical cluster and create a dendrogram to see how connected these phrases are.
+
+***Instruction:***
+
+- Create `amzn_c_tdm` as a `TermDocumentMatrix` using `amzn_cons_corp` with `control = list(tokenize = tokenizer)`.
+- Print `amzn_c_tdm` to the console.
+- Create `amzn_c_tdm2` by applying the `removeSparseTerms()` function to `amzn_c_tdm` with the sparse argument equal to `.993`.
+- Create `hc`, a hierarchical cluster object by nesting the distance matrix `dist(amzn_c_tdm2)` inside the `hclust()` function. Make sure to also pass `method = "complete"` to the `hclust()` function.
+- Plot `hc` to view the clustered bigrams and see how the concepts in the Amazon cons section may lead you to a conclusion.
+
+```{r}
+# Create amzn_c_tdm
+amzn_c_tdm <- TermDocumentMatrix(
+  amzn_cons_corp, 
+  control = list(tokenize = tokenizer))
+
+# Print amzn_c_tdm to the console
+amzn_c_tdm
+
+# Create amzn_c_tdm2 by removing sparse terms 
+amzn_c_tdm2 <- removeSparseTerms(amzn_c_tdm, sparse = .993)
+
+# Create hc as a cluster of distance values
+hc <- hclust(
+  d = dist(amzn_c_tdm2), method = "complete")
+
+# Produce a plot of hc
+plot(hc)
+```
+
+##### 4.12 Word association 
+
+As expected, you see similar topics throughout the dendrogram. Switching back to positive comments, you decide to examine top phrases that appeared in the word clouds. You hope to find associated terms using the `findAssocs()` function from `tm`. You want to check for something surprising now that you have learned of long hours and a lack of work-life balance.
+
+***Instruction:***
+
+The `amzn_pros_corp` corpus has been cleaned using the custom functions like before.
+
+- Construct a TDM called `amzn_p_tdm` from `amzn_pros_corp` and `control = list(tokenize = tokenizer)`.
+
+- Create `amzn_p_m` by converting `amzn_p_tdm` to a matrix.
+
+- Create `amzn_p_freq` by applying `rowSums()` to `amzn_p_m`.
+
+- Create `term_frequency` using `sort()` on `amzn_p_freq` along with the argument `decreasing = TRUE`.
+
+- Examine the first 5 bigrams using `term_frequency[1:5]`.
+
+- You may be surprised to see "fast paced" as a top term because it could be a negative term related to "long hours". Look at the terms most associated with "fast paced". Use `findAssocs()` on `amzn_p_tdm` to examine `"fast paced"` with a `0.2` cutoff.
+
+```{r}
+# Create amzn_p_tdm
+amzn_p_tdm <- TermDocumentMatrix(
+  amzn_pros_corp,
+  control = list(tokenize = tokenizer)
+)
+
+# Create amzn_p_m
+amzn_p_m <- as.matrix(amzn_p_tdm)
+
+# Create amzn_p_freq
+amzn_p_freq <- rowSums(amzn_p_m)
+
+# Create term_frequency
+term_frequency <- sort(amzn_p_freq, decreasing = T)
+
+# Print the 5 most common terms
+term_frequency[1:5]
+
+# Find associations with fast paced
+associations <- findAssocs(amzn_p_tdm, "fast paced", 0.2)
+associations
+```
+
+##### 4.13 Quick review of Google reviews 
+
+You decide to create a `comparison.cloud()` of Google's positive and negative reviews for comparison to Amazon. This will give you a quick understanding of top terms without having to spend as much time as you did examining the Amazon reviews in the previous exercises.
+
+We've provided you with a corpus `all_goog_corpus`, which has the 500 positive and 500 negative reviews for Google. Here, you'll clean the corpus and create a comparison cloud comparing the common words in both pro and con reviews.
+
+***Instruction:***
+
+The `all_goog_corpus` object consisting of Google pro and con reviews is loaded in your workspace.
+
+- Create `all_goog_corp` by cleaning `all_goog_corpus` with the predefined `tm_clean()` function.
+
+- Create `all_tdm` by converting `all_goog_corp` to a term-document matrix.
+
+- Create `all_m` by converting `all_tdm` to a matrix.
+
+- Construct a `comparison.cloud()` from `all_m`. Set `max.words` to `100`. The `colors` argument is specified for you.
+
+```{r echo=FALSE}
+# Source and create the corpus
+all_goog_corpus <- VCorpus(VectorSource(goog[,3:4]))
+```
+
+```{r}
+# Create all_goog_corp
+all_goog_corp <- tm_clean(all_goog_corpus)
+
+# Create all_tdm
+all_tdm <- TermDocumentMatrix(all_goog_corp)
+
+# Create all_m
+all_m <- as.matrix(all_tdm)
+
+# Build a comparison cloud
+comparison.cloud(all_m,
+  colors = c("#F44336", "#2196f3"),
+  max.words = 100)
+```
+
+##### 4.14 Cage match! Amazon vs. Google pro reviews 
+
+Amazon's positive reviews appear to mention bigrams such as "good benefits", while its negative reviews focus on bigrams such as "work load" and "work-life balance" issues.
+
+In contrast, Google's positive reviews mention "great food", "perks", "smart people", and "fun culture", among other things. Google's negative reviews discuss "politics", "getting big", "bureaucracy", and "middle management".
+
+You decide to make a pyramid plot lining up positive reviews for Amazon and Google so you can compare the differences between any shared bigrams.
+We have preloaded a data frame, `all_tdm_df`, consisting of `terms` and corresponding `AmazonPro`, and `GooglePro` bigram frequencies. Using this data frame you will identify the top 5 bigrams that are shared between the two corpora.
+
+***Instruction:***
+
+- Create `common_words` from `all_tdm_df` using `dplyr` functions.
+
+  - `filter()` on the `AmazonPro` column for nonzero values.
+  
+  - Likewise filter the `GooglePro` column for nonzero values.
+  
+  - Then `mutate()` a new column, `diff` which is the `abs` (absolute) difference between the term frequencies columns.
+  
+- Although we could have piped again, create `top5_df` by applying `top_n` to `common_words` to extract the top `5` values in the `diff` column. It will print to your console for review.
+
+- Create a `pyramid.plot` passing in `top5_df$AmazonPro` then `top5_df$GooglePro` and finally add labels with `top5_df$terms`.
+
+```{r eval=FALSE}
+# Filter to words in common and create an absolute diff column
+common_words <- all_tdm_df %>% 
+  filter(
+    AmazonPro != 0,
+    GooglePro != 0
+  ) %>%
+  mutate(diff = abs(AmazonPro - GooglePro))
+
+# Extract top 5 common bigrams
+(top5_df <- top_n(common_words, 5))
+
+# Create the pyramid plot
+pyramid.plot(top5_df$AmazonPro, top5_df$GooglePro, 
+             labels = top5_df$terms, gap = 12, 
+             top.labels = c("Amzn", "Pro Words", "Goog"), 
+             main = "Words in Common", unit = NULL)
+```
+
+##### 4.15 Cage match, part 2! Negative reviews 
+***Instruction:***
+
+- Using `top_n()` on `common_words`, obtain the top `5` bigrams weighted on the `diff` column. The results of the new object will print to your console.
+- Create a `pyramid.plot()`. Pass in `top5_df$AmazonNeg`, `top5_df$GoogleNeg`, and labels = top5_df$terms. For better labeling, set
+  - `gap` to `12`.
+  - `top.labels` to `c("Amzn", "Neg Words", "Goog")`
+ 
+The `main` and `unit` arguments are set for you.
+
+```{r eval=FALSE}
+# Extract top 5 common bigrams
+(top5_df <- top_n(common_words, 5, wt = diff))
+
+# Create a pyramid plot
+pyramid.plot(
+    # Amazon on the left
+    top5_df$AmazonNeg,
+    # Google on the right
+    top5_df$GoogleNeg,
+    # Use terms for labels
+    labels = top5_df$terms,
+    # Set the gap to 12
+    gap = 12,
+    # Set top.labels to "Amzn", "Neg Words" & "Goog"
+    top.labels = c("Amzn", "Neg Words", "Goog"),
+    main = "Words in Common", 
+    unit = NULL
+)
+```
+
+##### 4.16 Step 6: Reach a conclusion (video)
+
+##### 4.17 Draw conclusions, insights, or recommendations 
+
+##### 4.18 Draw another conclusion, insight, or recommendation
+
+##### 4.19 Finished! 
